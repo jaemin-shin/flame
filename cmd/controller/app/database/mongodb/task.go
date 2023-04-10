@@ -46,6 +46,8 @@ func (db *MongoService) CreateTasks(tasks []objects.Task, dirty bool) error {
 		// TODO: implement this
 	}()
 
+	var updates []mongo.WriteModel
+
 	for _, task := range tasks {
 		cfgData, err := json.Marshal(&task.JobConfig)
 		if err != nil {
@@ -69,20 +71,17 @@ func (db *MongoService) CreateTasks(tasks []objects.Task, dirty bool) error {
 		}
 		zap.S().Debugf("taskID %s is assigned compute %s", task.TaskId, task.ComputeId)
 
-		after := options.After
-		upsert := true
-		opts := options.FindOneAndUpdateOptions{
-			ReturnDocument: &after,
-			Upsert:         &upsert,
-		}
-
-		var updatedDoc bson.M
-		err = db.taskCollection.FindOneAndUpdate(context.TODO(), filter, update, &opts).Decode(&updatedDoc)
-		if err != nil {
-			zap.S().Errorf("Failed to insert a task: %v", err)
-			return err
-		}
+		updateModel := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(update).SetUpsert(true)
+		updates = append(updates, updateModel)
 	}
+
+	opts := options.BulkWriteOptions{}
+	result, err := db.taskCollection.BulkWrite(context.TODO(), updates, &opts)
+	if err != nil {
+		zap.S().Errorf("Failed to update tasks: %v", err)
+		return err
+	}
+	zap.S().Debugf("Updated %v tasks", result.ModifiedCount + result.UpsertedCount)
 
 	success = true
 	zap.S().Debugf("Created tasks successufully")

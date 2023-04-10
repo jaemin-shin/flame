@@ -259,20 +259,32 @@ func (s *JobsApiService) UpdateTaskStatus(ctx context.Context, jobId string, tas
 
 func (s *JobsApiService) createTasks(user string, jobId string, dirty bool) error {
 	// Obtain job specification
+	start1 := time.Now()
 	jobSpec, err := s.dbService.GetJob(user, jobId)
 	if err != nil {
 		return fmt.Errorf("failed to get a job spec for job %s: %v", jobId, err)
 	}
+	duration1 := time.Since(start1)
+	fmt.Printf("Time taken by GetJob:", duration1)
+	zap.S().Debug("Time taken by GetJob:", duration1)
 
+	start2 := time.Now()
 	tasks, _, err := s.jobBuilder.GetTasks(&jobSpec)
 	if err != nil {
 		return fmt.Errorf("failed to generate tasks for job %s: %v", jobId, err)
 	}
+	duration2 := time.Since(start2)
+	fmt.Printf("Time taken by GetTasks:", duration2)
+	zap.S().Debug("Time taken by GetTasks:", duration2)
 
+	start3 := time.Now()
 	err = s.dbService.CreateTasks(tasks, dirty)
 	if err != nil {
 		return fmt.Errorf("failed to create tasks for job %s in database: %v", jobId, err)
 	}
+	duration3 := time.Since(start3)
+	fmt.Printf("Time taken by CreateTasks:", duration3)
+	zap.S().Debug("Time taken by CreateTasks:", duration3)
 
 	return nil
 }
