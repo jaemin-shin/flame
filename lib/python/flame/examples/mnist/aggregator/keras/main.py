@@ -16,12 +16,14 @@
 """MNIST horizontal FL aggregator for Keras."""
 
 import logging
+import numpy as np
 
 from flame.config import Config
 from flame.dataset import Dataset
 from flame.mode.horizontal.top_aggregator import TopAggregator
 from tensorflow import keras
 from tensorflow.keras import layers
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -39,29 +41,53 @@ class KerasMnistAggregator(TopAggregator):
         self.num_classes = 10
         self.input_shape = (28, 28, 1)
 
+        self.exp_start_time = datetime.now()
+
     def initialize(self):
         """Initialize role."""
-        model = keras.Sequential([
-            keras.Input(shape=self.input_shape),
-            layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
-            layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
-            layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Flatten(),
-            layers.Dropout(0.5),
-            layers.Dense(self.num_classes, activation="softmax"),
-        ])
+        model = keras.Sequential(
+            [
+                keras.Input(shape=self.input_shape),
+                layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Flatten(),
+                layers.Dropout(0.5),
+                layers.Dense(self.num_classes, activation="softmax"),
+            ]
+        )
 
-        model.compile(loss="categorical_crossentropy",
-                      optimizer="adam",
-                      metrics=["accuracy"])
+        model.compile(
+            loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+        )
 
         self.model = model
+
+        # Get the weights of the model
+        weights = model.get_weights()
+
+        # Calculate the size of each weight array and sum them up
+        size = sum(np.asarray(w).nbytes for w in weights)
+
+        # Print the total size of the model in bytes
+        logger.info("Model size: {} bytes".format(size))
 
     def load_data(self) -> None:
         """Load a test dataset."""
         # Implement this if loading data is needed in aggregator
-        pass
+        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+
+        # Scale images to the [0, 1] range
+        x_test = x_test.astype("float32") / 255
+        # Make sure images have shape (28, 28, 1)
+        x_test = np.expand_dims(x_test, -1)
+
+        # convert class vectors to binary class matrices
+        y_test = keras.utils.to_categorical(y_test, self.num_classes)
+
+        self._x_test = x_test
+        self._y_test = y_test
 
     def train(self) -> None:
         """Train a model."""
@@ -71,14 +97,23 @@ class KerasMnistAggregator(TopAggregator):
     def evaluate(self) -> None:
         """Evaluate (test) a model."""
         # Implement this if testing is needed in aggregator
-        pass
+        score = self.model.evaluate(self._x_test, self._y_test, verbose=0)
+
+        logger.info(f"Test loss: {score[0]}")
+        logger.info(f"Test accuracy: {score[1]}")
+
+        # update metrics after each evaluation so that the metrics can be
+        # logged in a model registry.
+        self.update_metrics({"test-loss": score[0], "test-accuracy": score[1]})
+
+        logger.info(f"Current time: {datetime.now() - self.exp_start_time}")
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('config', nargs='?', default="./config.json")
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("config", nargs="?", default="./config.json")
 
     args = parser.parse_args()
 

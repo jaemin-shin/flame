@@ -17,12 +17,14 @@
 """Hybrid aggregator for Keras."""
 
 import logging
+import numpy as np
 
 from flame.config import Config
 from flame.dataset import Dataset
 from flame.mode.horizontal.top_aggregator import TopAggregator
 from tensorflow import keras
 from tensorflow.keras import layers
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,8 @@ class KerasMnistAggregator(TopAggregator):
 
         self.num_classes = 10
         self.input_shape = (28, 28, 1)
+
+        self.exp_start_time = datetime.now()
 
     def initialize(self):
         """Initialize role."""
@@ -60,8 +64,19 @@ class KerasMnistAggregator(TopAggregator):
 
     def load_data(self) -> None:
         """Load a test dataset."""
-        # Implement this if loading data is needed in aggregator
-        pass
+        # the data, split between train and test sets
+        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+
+        # Scale images to the [0, 1] range
+        x_test = x_test.astype("float32") / 255
+        # Make sure images have shape (28, 28, 1)
+        x_test = np.expand_dims(x_test, -1)
+
+        # convert class vectors to binary class matrices
+        y_test = keras.utils.to_categorical(y_test, self.num_classes)
+
+        self._x_test = x_test
+        self._y_test = y_test
 
     def train(self) -> None:
         """Train a model."""
@@ -70,8 +85,16 @@ class KerasMnistAggregator(TopAggregator):
 
     def evaluate(self) -> None:
         """Evaluate (test) a model."""
-        # Implement this if testing is needed in aggregator
-        pass
+        score = self.model.evaluate(self._x_test, self._y_test, verbose=0)
+
+        logger.info(f"Test loss: {score[0]}")
+        logger.info(f"Test accuracy: {score[1]}")
+
+        # update metrics after each evaluation so that the metrics can be
+        # logged in a model registry.
+        self.update_metrics({'test-loss': score[0], 'test-accuracy': score[1]})
+
+        logger.info(f"Current time: {datetime.now() - self.exp_start_time}")
 
 if __name__ == "__main__":
     import argparse

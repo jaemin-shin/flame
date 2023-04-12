@@ -1,6 +1,6 @@
 {
-    "taskid": "505f9fc483cf4df68a2409257b5fad7d3c580370",
-    "backend": "p2p",
+    "taskid": "49d06b7526964db86cf37c70e8e0cdb6bd7aa742",
+    "backend": "mqtt",
     "brokers": [
         {
             "host": "localhost",
@@ -12,52 +12,30 @@
         }
     ],
     "groupAssociation": {
-        "param-channel": "us",
-        "global-channel": "default"
+        "param-channel": "default"
     },
     "channels": [
         {
-            "backend": "p2p",
-            "description": "Model update is sent from a trainer to another trainer",
-            "groupBy": {
-                "type": "tag",
-                "value": [
-                    "eu",
-                    "us"
-                ]
-            },
-            "name": "param-channel",
-            "pair": [
-                "trainer",
-                "trainer"
-            ],
-            "funcTags": {
-                "trainer": [
-                    "ring_allreduce"
-                ]
-            }
-        },
-        {
-            "description": "Model update is sent from a trainer to an aggregator",
+            "description": "Model update is sent from trainer to aggregator and vice-versa",
             "groupBy": {
                 "type": "tag",
                 "value": [
                     "default"
                 ]
             },
-            "name": "global-channel",
+            "name": "param-channel",
             "pair": [
                 "trainer",
                 "aggregator"
             ],
             "funcTags": {
-                "trainer": [
-                    "fetch",
-                    "upload"
-                ],
                 "aggregator": [
                     "distribute",
                     "aggregate"
+                ],
+                "trainer": [
+                    "fetch",
+                    "upload"
                 ]
             }
         }
@@ -69,15 +47,15 @@
     "hyperparameters": {
         "batchSize": 32,
         "learningRate": 0.01,
-        "rounds": 5
+        "rounds": 20
     },
     "baseModel": {
         "name": "",
-        "version": 1
+        "version": 2
     },
     "job": {
-        "id": "622a358619ab59012eabeefc",
-        "name": "hybrid_mnist"
+        "id": "622a358619ab59012eabeefb",
+        "name": "mnist"
     },
     "registry": {
         "sort": "dummy",
@@ -92,6 +70,6 @@
         "kwargs": {}
     },
     "maxRunTime": 300,
-    "realm": "us-org-cluster",
-    "role": "trainer"
+    "realm": "default",
+    "role": "aggregator"
 }

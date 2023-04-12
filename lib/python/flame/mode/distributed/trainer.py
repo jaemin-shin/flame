@@ -180,7 +180,7 @@ class Trainer(Role, metaclass=ABCMeta):
             to_idx = chunk_ends[send_chunk_idx]
 
             send_chunk = self._get_send_chunk_fn(from_idx, to_idx)
-            logger.debug(f"sending chunk: {len(send_chunk)} to {sendto_id}")
+            logger.debug(f"allreduce: sending chunk: {len(send_chunk)} to {sendto_id}")
 
             channel.send(sendto_id, {MessageType.WEIGHTS: send_chunk})
 
@@ -188,7 +188,9 @@ class Trainer(Role, metaclass=ABCMeta):
             msg, _ = channel.recv(recvfrom_id)
             recv_chunk = msg[MessageType.WEIGHTS]
 
-            logger.debug(f"recv'd chunk: {len(recv_chunk)} from {recvfrom_id}")
+            logger.debug(
+                f"allreduce: recv'd chunk: {len(recv_chunk)} from {recvfrom_id} len {recv_chunk_idx}"
+            )
 
             try:
                 assert len(recv_chunk) == chunk_sizes[recv_chunk_idx]
@@ -210,11 +212,17 @@ class Trainer(Role, metaclass=ABCMeta):
             to_idx = chunk_ends[send_chunk_idx]
 
             send_chunk = self._get_send_chunk_fn(from_idx, to_idx)
+            logger.debug(f"allgather: sending chunk: {len(send_chunk)} to {sendto_id}")
+
             channel.send(sendto_id, {MessageType.WEIGHTS: send_chunk})
 
             recv_chunk_idx = (rank - i + size) % size
             msg, _ = channel.recv(recvfrom_id)
             recv_chunk = msg[MessageType.WEIGHTS]
+
+            logger.debug(
+                f"allgather: recv'd chunk: {len(recv_chunk)} from {recvfrom_id} len {recv_chunk_idx}"
+            )
 
             try:
                 assert len(recv_chunk) == chunk_sizes[recv_chunk_idx]
@@ -362,6 +370,8 @@ class Trainer(Role, metaclass=ABCMeta):
         return True, dataset_size
 
     def _member_check(self, channel) -> None:
+        if self.ends_of_ring != None:
+            return
         # reset ends in the ring
         self.ends_of_ring = None
 

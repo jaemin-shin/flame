@@ -1,6 +1,6 @@
 {
-    "taskid": "505f9fc483cf4df68a2409257b5fad7d3c580370",
-    "backend": "p2p",
+    "taskid": "0",
+    "backend": "mqtt",
     "brokers": [
         {
             "host": "localhost",
@@ -12,31 +12,9 @@
         }
     ],
     "groupAssociation": {
-        "param-channel": "us",
         "global-channel": "default"
     },
     "channels": [
-        {
-            "backend": "p2p",
-            "description": "Model update is sent from a trainer to another trainer",
-            "groupBy": {
-                "type": "tag",
-                "value": [
-                    "eu",
-                    "us"
-                ]
-            },
-            "name": "param-channel",
-            "pair": [
-                "trainer",
-                "trainer"
-            ],
-            "funcTags": {
-                "trainer": [
-                    "ring_allreduce"
-                ]
-            }
-        },
         {
             "description": "Model update is sent from a trainer to an aggregator",
             "groupBy": {
@@ -92,6 +70,6 @@
         "kwargs": {}
     },
     "maxRunTime": 300,
-    "realm": "us-org-cluster",
-    "role": "trainer"
+    "realm": "default",
+    "role": "aggregator"
 }

@@ -104,7 +104,6 @@ class FedAvg(AbstractOptimizer):
             self.agg_weights[k] += tmp
 
     def _aggregate_tensorflow(self, tres, rate):
-        logger.debug("calling _aggregate_tensorflow")
 
         for idx in range(len(tres.weights)):
             self.agg_weights[idx] += tres.weights[idx] * rate
