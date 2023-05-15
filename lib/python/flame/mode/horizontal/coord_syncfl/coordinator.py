@@ -115,7 +115,15 @@ class Coordinator(Role):
         # randomly pair aggregator with trainers
         # TODO: other pairing can be implemented
         for trainer_end in trainer_ends:
-            agg_end = random.choice(agg_ends)
+            if self._round not in [1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 18, 27]:
+                agg_end = "2000"
+            else:
+                if trainer_end in ["10000", "10001", "10002", "10003", "10004"]:
+                    agg_end = "1000"
+                else:
+                    agg_end = "2000"
+
+            # agg_end = random.choice(agg_ends)
             self.trainer_to_agg[trainer_end] = agg_end
 
             self.agg_to_trainer[agg_end].append(trainer_end)

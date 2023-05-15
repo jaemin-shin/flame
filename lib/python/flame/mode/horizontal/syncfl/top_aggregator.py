@@ -17,6 +17,7 @@
 
 import logging
 import time
+import subprocess
 from copy import deepcopy
 from datetime import datetime
 
@@ -113,6 +114,8 @@ class TopAggregator(Role, metaclass=ABCMeta):
                 "supported ml framework not found; "
                 f"supported frameworks are: {valid_frameworks}"
             )
+        
+        self.last_round_start_timestamp = None
 
     def get(self, tag: str) -> None:
         """Get data from remote role(s)."""
@@ -178,10 +181,69 @@ class TopAggregator(Role, metaclass=ABCMeta):
     def put(self, tag: str) -> None:
         """Set data to remote role(s)."""
         if tag == TAG_DISTRIBUTE:
+            if self.last_round_start_timestamp == None:
+                self.last_round_start_timestamp = datetime.now()
+                self.exp_start_time = datetime.now()
+            else:
+                curr_time = datetime.now()
+                logger.info(f"ROUND TIME: {(curr_time - self.last_round_start_timestamp).total_seconds()}")
+                if self._round == 6:
+                    self.make_stragglers()
+                    curr_time = datetime.now()
+                elif self._round == 36:
+                    self.remove_stragglers()
+                    curr_time = datetime.now()
+                self.last_round_start_timestamp = curr_time
+
             self.dist_tag = tag
             self._distribute_weights(tag)
+    
+    def make_stragglers(self) -> None:
+        # Execute the netstat command to get active network connections
+        netstat_output = subprocess.check_output(
+            ["netstat", "-anp", "|", "grep", "1883"]
+        )
+
+        # Split the netstat output into lines
+        netstat_lines = netstat_output.decode("latin1").split("\n")
+
+        # Loop through each line of the netstat output
+        for line in netstat_lines:
+            # Check if the line contains a Python program
+            if "python" in line and "1883" in line:
+                if "tcp" not in line.split():
+                    continue
+                # Get the PID of the Python program
+                pid = line.split()[-1].split("/")[0]
+
+                # Execute the ps command to get the program name
+                ps_output = subprocess.check_output(["ps", "-p", pid, "-o", "cmd"])
+
+                # Extract the program name from the ps output
+                program_name = ps_output.decode().split("\n")[1].strip()
+                port_no = str(line.split()[3].split(":")[1])
+
+                if "cluster" in program_name:
+                    if "cluster0" not in program_name:
+                        continue
+
+                if "mid_aggregator.json" in program_name or "mid_aggregator0.json" in program_name:
+                    cmd = f"tcset lo --rate 1mbps --src-port {port_no}"
+                    subprocess.check_output(
+                        ["sudo", "-S", "bash", "-c", cmd],
+                        input="se54t8jm8433\n",
+                        universal_newlines=True,
+                    )
+    def remove_stragglers(self) -> None:
+        cmd = "tcdel lo --all"
+        subprocess.check_output(
+                ["sudo", "-S", "bash", "-c", cmd],
+                input="se54t8jm8433\n",
+                universal_newlines=True,
+                )
 
     def _distribute_weights(self, tag: str) -> None:
+        logger.info(f"ROUNDS: {self._round}")
         channel = self.cm.get_by_tag(tag)
         if not channel:
             logger.debug(f"channel not found for tag {tag}")
